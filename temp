@@ -1,0 +1,64 @@
+import RPi.GPIO as GPIO
+import Adafruit_DHT
+import time
+import requests
+
+# Pin setup
+SOUND_PIN = 17
+WET_PIN = 27
+BUZZER_PIN = 22
+SERVO_PIN = 18
+DHT_PIN = 4
+
+# ThingSpeak settings
+THINGSPEAK_API_KEY = 'XYZ123ABC'
+THINGSPEAK_URL = "https://api.thingspeak.com/update"
+
+GPIO.setmode(GPIO.BCM)
+GPIO.setup([SOUND_PIN, WET_PIN], GPIO.IN)
+GPIO.setup(BUZZER_PIN, GPIO.OUT)
+GPIO.setup(SERVO_PIN, GPIO.OUT)
+servo = GPIO.PWM(SERVO_PIN, 50)
+servo.start(0)
+
+def send_to_thingspeak(temp, humidity, wet):
+    payload = {
+        "api_key": THINGSPEAK_API_KEY,
+        "field1": temp,
+        "field2": humidity,
+        "field3": wet
+    }
+    requests.get(THINGSPEAK_URL, params=payload)
+
+def rock_cradle():
+    for angle in range(0, 90, 10):
+        servo.ChangeDutyCycle(2 + (angle / 18))
+        time.sleep(0.1)
+    for angle in range(90, 0, -10):
+        servo.ChangeDutyCycle(2 + (angle / 18))
+        time.sleep(0.1)
+
+try:
+    while True:
+        humidity, temp = Adafruit_DHT.read_retry(Adafruit_DHT.DHT11, DHT_PIN)
+        crying = GPIO.input(SOUND_PIN)
+        wet = GPIO.input(WET_PIN)
+
+        if crying:
+            print("Baby is crying! Rocking cradle.")
+            rock_cradle()
+            GPIO.output(BUZZER_PIN, True)
+            time.sleep(5)
+            GPIO.output(BUZZER_PIN, False)
+
+        if wet:
+            print("Diaper wet! Alerting parent.")
+            GPIO.output(BUZZER_PIN, True)
+            time.sleep(3)
+            GPIO.output(BUZZER_PIN, False)
+
+        send_to_thingspeak(temp, humidity, wet)
+        time.sleep(10)
+
+except KeyboardInterrupt:
+    GPIO.cleanup()
