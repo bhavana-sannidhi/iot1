@@ -1,0 +1,38 @@
+import RPi.GPIO as GPIO
+import time
+
+# --- GPIO Setup ---
+sound_sensor_pin = 17     # Digital pin for sound sensor (adjust as needed)
+servo_pin = 18            # PWM pin for servo
+
+GPIO.setmode(GPIO.BCM)
+GPIO.setup(sound_sensor_pin, GPIO.IN)
+GPIO.setup(servo_pin, GPIO.OUT)
+
+# --- Servo Setup ---
+pwm = GPIO.PWM(servo_pin, 50)  # 50Hz
+pwm.start(7.5)  # Neutral position
+
+def rock_cradle():
+    # Rocking motion (swing left to right)
+    for i in range(3):  # Repeat rocking 3 times
+        pwm.ChangeDutyCycle(5)   # Left
+        time.sleep(0.5)
+        pwm.ChangeDutyCycle(10)  # Right
+        time.sleep(0.5)
+    pwm.ChangeDutyCycle(7.5)  # Neutral
+
+try:
+    print("Smart Cradle System Started. Monitoring baby cry...")
+    while True:
+        if GPIO.input(sound_sensor_pin) == GPIO.HIGH:
+            print("Crying detected! Rocking the cradle...")
+            rock_cradle()
+        time.sleep(0.2)
+
+except KeyboardInterrupt:
+    print("System Stopped")
+
+finally:
+    pwm.stop()
+    GPIO.cleanup()
